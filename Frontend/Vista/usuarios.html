@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Usuarios - Bodega Rocío</title>
+    <link rel="stylesheet" href="../CSS/styles.css">
+</head>
+<body>
+
+<nav>
+    <div class="titulo">Bodega Rocío</div>
+    <div>
+        <a href="productos.html">Productos</a>
+        <a href="inventario.html">Inventario</a>
+        <a href="usuarios.html">Usuarios</a>
+        <button onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="container">
+
+<h1>Listado de Usuarios</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Correo</th>
+            <th>Rol</th>
+        </tr>
+    </thead>
+    <tbody id="tabla-usuarios"></tbody>
+</table>
+
+</div>
+
+<script src="../JS/usuarios.js"></script>
+</body>
+</html>
