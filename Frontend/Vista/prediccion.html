@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Predicción IA - Bodega Rocío</title>
+    <link rel="stylesheet" href="../CSS/styles.css">
+
+    <!-- 📈 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<nav>
+    <span class="titulo">Bodega Rocío — Predicción IA</span>
+    <div>
+        <a href="productos.html">Productos</a>
+        <a href="inventario.html">Inventario</a>
+        <a href="ventas.html">Ventas</a>
+        <a href="usuarios.html">Usuarios</a>
+        <button onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<div class="container">
+
+<h1>Predicción de Demanda</h1>
+
+<label>Producto:</label>
+<select id="producto"></select>
+
+<label>Días a predecir:</label>
+<input type="number" id="dias" value="7" min="1" max="30">
+
+<button onclick="predecir()">Predecir</button>
+
+<hr>
+
+<h2>Resultado</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Demanda Predicha</th>
+        </tr>
+    </thead>
+    <tbody id="tabla-prediccion"></tbody>
+</table>
+
+<hr>
+
+<h2>Gráfica de Demanda</h2>
+<canvas id="graficaPrediccion" height="120"></canvas>
+
+<hr>
+
+<h2>Recomendación de Reabastecimiento</h2>
+
+<button onclick="reabastecer()">Calcular Compra</button>
+
+<p id="resultado-reabastecimiento" style="font-weight:bold;"></p>
+
+</div>
+
+<script src="../JS/prediccion.js"></script>
+
+</body>
+</html>

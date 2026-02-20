@@ -69,7 +69,7 @@ class ProductoModel:
         conn.close()
         return True, "Stock actualizado correctamente"
 
-    # 🔴 ALERTAS DE STOCK BAJO (HU04)
+    # ALERTAS DE STOCK BAJO (HU04)
     @staticmethod
     def obtener_stock_bajo(stock_minimo=5):
         conn = get_connection()
@@ -83,3 +83,19 @@ class ProductoModel:
 
         conn.close()
         return productos
+
+    # OBTENER PRODUCTO POR ID (necesario para IA)
+    @staticmethod
+    def obtener_por_id(producto_id):
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute(
+            "SELECT * FROM productos WHERE id = %s",
+            (producto_id,)
+        )
+
+        producto = cursor.fetchone()
+
+        conn.close()
+        return producto
