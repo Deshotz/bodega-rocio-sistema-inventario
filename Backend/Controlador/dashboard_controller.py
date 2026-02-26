@@ -4,35 +4,45 @@ from Backend.Modelo.ventas_model import VentasModel
 
 dashboard_bp = Blueprint("dashboard_bp", __name__)
 
-
 # =========================
-# 📊 KPIs DEL NEGOCIO
+# 📊 KPIs ESTRATÉGICOS
 # =========================
 @dashboard_bp.route("/dashboard/kpis")
 def kpis():
 
     ventas = VentasModel.obtener_todas()
+    productos = ProductoModel.obtener_todos()
+
     ventas_totales = len(ventas)
 
-    stock_bajo = len(ProductoModel.obtener_stock_bajo())
-
-    productos = {}
-
+    # 🔥 Producto más vendido
+    conteo = {}
     for v in ventas:
         nombre = v["producto"]
         cantidad = v["cantidad"]
+        conteo[nombre] = conteo.get(nombre, 0) + cantidad
 
-        if nombre not in productos:
-            productos[nombre] = 0
+    producto_top = max(conteo, key=conteo.get) if conteo else "N/A"
 
-        productos[nombre] += cantidad
+    # 📦 Stock bajo
+    stock_bajo = len(ProductoModel.obtener_stock_bajo())
 
-    producto_top = max(productos, key=productos.get) if productos else "N/A"
+    # 🔴 Productos críticos
+    productos_criticos = len(
+        [p for p in productos if p["nivel_criticidad"] == "Crítico"]
+    )
+
+    # 🟠 Productos Clase A
+    productos_a = len(
+        [p for p in productos if p["clasificacion_abc"] == "A"]
+    )
 
     return jsonify({
         "ventas_totales": ventas_totales,
         "stock_bajo": stock_bajo,
-        "producto_top": producto_top
+        "producto_top": producto_top,
+        "productos_criticos": productos_criticos,
+        "productos_a": productos_a
     })
 
 
@@ -47,15 +57,11 @@ def ventas_por_fecha():
 
     for v in ventas:
         fecha = str(v["fecha"])[:10]
-
-        if fecha not in resumen:
-            resumen[fecha] = 0
-
-        resumen[fecha] += v["cantidad"]
+        resumen[fecha] = resumen.get(fecha, 0) + v["cantidad"]
 
     resultado = [
         {"fecha": f, "total": t}
-        for f, t in resumen.items()
+        for f, t in sorted(resumen.items())
     ]
 
     return jsonify(resultado)

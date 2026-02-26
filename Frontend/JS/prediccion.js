@@ -1,46 +1,25 @@
-// =========================
-// PROTECCIÓN DE SESIÓN
-// =========================
 const usuario = JSON.parse(localStorage.getItem("usuario"));
 
 if (!usuario) {
     window.location.href = "index.html";
 }
 
+let grafica = null;
 
-// =========================
-// CARGAR PRODUCTOS
-// =========================
 document.addEventListener("DOMContentLoaded", () => {
-
     fetch("http://127.0.0.1:5000/productos")
         .then(res => res.json())
         .then(data => {
-
             const select = document.getElementById("producto");
-
             data.forEach(p => {
                 const option = document.createElement("option");
                 option.value = p.id;
                 option.textContent = p.nombre;
                 select.appendChild(option);
             });
-        })
-        .catch(() => {
-            alert("Error al cargar productos");
         });
 });
 
-
-// =========================
-// GRÁFICA GLOBAL
-// =========================
-let grafica = null;
-
-
-// =========================
-// PREDICCIÓN
-// =========================
 function predecir() {
 
     const producto_id = document.getElementById("producto").value;
@@ -55,28 +34,25 @@ function predecir() {
                 return;
             }
 
-            const tabla = document.getElementById("tabla-prediccion");
-            tabla.innerHTML = "";
-
             const fechas = [];
             const valores = [];
 
-            data.forEach(item => {
-
-                const fila = document.createElement("tr");
-
-                fila.innerHTML = `
-                    <td>${item.fecha}</td>
-                    <td>${item.demanda_predicha}</td>
-                `;
-
-                tabla.appendChild(fila);
-
+            data.predicciones.forEach(item => {
                 fechas.push(item.fecha);
                 valores.push(item.demanda_predicha);
             });
 
-            // ===== CREAR GRÁFICA =====
+            const demandaTotal = valores.reduce((a,b)=>a+b,0);
+
+            document.getElementById("resumenDemanda").innerHTML = `
+                📦 Producto: <b>${data.producto}</b><br>
+                📊 Tipo: ${data.tipo_producto}<br>
+                🔠 Clasificación ABC: ${data.clasificacion_abc}<br>
+                🚨 Criticidad: <b>${data.nivel_criticidad}</b><br>
+                ⏳ Lead Time: ${data.lead_time} días<br><br>
+                🔮 Demanda estimada (${dias} días): 
+                <b>${demandaTotal.toFixed(2)} unidades</b>
+            `;
 
             const ctx = document.getElementById("graficaPrediccion").getContext("2d");
 
@@ -89,45 +65,28 @@ function predecir() {
                     datasets: [{
                         label: "Demanda Predicha",
                         data: valores,
+                        borderColor: "#8e44ad",
+                        backgroundColor: "rgba(142,68,173,0.2)",
                         borderWidth: 3,
-                        tension: 0.3
+                        tension: 0.3,
+                        fill: true
                     }]
                 },
                 options: {
                     responsive: true,
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: "Unidades"
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: "Fecha"
-                            }
-                        }
+                        y: { beginAtZero: true }
                     }
                 }
             });
-        })
-        .catch(() => {
-            alert("Error al obtener la predicción");
         });
 }
 
-
-// =========================
-// REABASTECIMIENTO
-// =========================
 function reabastecer() {
 
     const producto_id = document.getElementById("producto").value;
-    const dias = document.getElementById("dias").value;
 
-    fetch(`http://127.0.0.1:5000/ia/reabastecimiento/${producto_id}?dias=${dias}`)
+    fetch(`http://127.0.0.1:5000/ia/reabastecimiento/${producto_id}`)
         .then(res => res.json())
         .then(data => {
 
@@ -136,23 +95,23 @@ function reabastecer() {
                 return;
             }
 
-            const texto = `
-                📊 Demanda estimada: ${data.demanda_estimada} unidades <br>
-                📦 Stock actual: ${data.stock_actual} unidades <br>
-                🛒 <span style="color:red;">Comprar: ${data.recomendacion_compra} unidades</span>
-            `;
+            let color = "green";
 
-            document.getElementById("resultado-reabastecimiento").innerHTML = texto;
-        })
-        .catch(() => {
-            alert("Error al calcular reabastecimiento");
+            if (data.nivel_criticidad === "Crítico") color = "red";
+            else if (data.nivel_criticidad === "Alto") color = "orange";
+            else if (data.nivel_criticidad === "Medio") color = "#f1c40f";
+
+            document.getElementById("resultado-reabastecimiento").innerHTML = `
+                📊 Demanda estimada (Lead Time ${data.lead_time} días): 
+                ${data.demanda_estimada} unidades <br>
+                📦 Stock actual: ${data.stock_actual} unidades <br><br>
+                🛒 <span class="alerta-compra" style="color:${color};">
+                Comprar: ${data.recomendacion_compra} unidades
+                </span>
+            `;
         });
 }
 
-
-// =========================
-// LOGOUT
-// =========================
 function logout() {
     localStorage.removeItem("usuario");
     window.location.href = "index.html";

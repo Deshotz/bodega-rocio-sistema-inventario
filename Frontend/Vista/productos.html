@@ -4,12 +4,32 @@
     <meta charset="UTF-8">
     <title>Productos - Bodega Rocío</title>
     <link rel="stylesheet" href="../CSS/styles.css">
+
+    <style>
+        .badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .critico { background-color: #e74c3c; }
+        .alto { background-color: #e67e22; }
+        .medio { background-color: #f1c40f; color: black; }
+        .bajo { background-color: #2ecc71; }
+
+        .fila-critico { background-color: #ffe6e6; }
+        .fila-alto { background-color: #fff0e0; }
+        .fila-medio { background-color: #fff9db; }
+    </style>
 </head>
 <body>
 
 <nav>
     <div class="titulo">Bodega Rocío</div>
     <div>
+        <a href="dashboard.html">Dashboard</a>
         <a href="productos.html">Productos</a>
         <a href="inventario.html">Inventario</a>
         <a href="usuarios.html">Usuarios</a>
@@ -20,7 +40,7 @@
 
 <div class="container">
 
-<h1>Gestión de Productos</h1>
+<h1>Gestión Estratégica de Productos</h1>
 
 <h2>Registrar Producto</h2>
 <form id="form-producto">
@@ -46,7 +66,10 @@
             <th>Categoría</th>
             <th>Precio</th>
             <th>Stock</th>
-            <th>Acciones</th> <!-- 🔴 ESTO FALTABA -->
+            <th>Tipo</th>
+            <th>ABC</th>
+            <th>Criticidad</th>
+            <th>Acciones</th>
         </tr>
     </thead>
     <tbody id="tabla-productos"></tbody>

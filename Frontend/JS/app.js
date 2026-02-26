@@ -1,4 +1,3 @@
-// 🔐 PROTECCIÓN (solo admin)
 const usuario = JSON.parse(localStorage.getItem("usuario"));
 
 if (!usuario) {
@@ -16,11 +15,11 @@ document.addEventListener("DOMContentLoaded", () => {
         .addEventListener("submit", registrarProducto);
 });
 
-// HU03 + HU04
 function cargarProductos() {
     fetch("http://127.0.0.1:5000/productos")
         .then(res => res.json())
         .then(data => {
+
             const tabla = document.getElementById("tabla-productos");
             const alertas = document.getElementById("alertas-stock");
 
@@ -28,23 +27,48 @@ function cargarProductos() {
             alertas.innerHTML = "";
 
             data.forEach(producto => {
+
                 const fila = document.createElement("tr");
 
-                if (producto.stock <= 5) {
-                    fila.classList.add("stock-bajo");
+                // 🔥 COLOR SEGÚN CRITICIDAD
+                if (producto.nivel_criticidad === "Crítico") {
+                    fila.classList.add("fila-critico");
+                }
+                else if (producto.nivel_criticidad === "Alto") {
+                    fila.classList.add("fila-alto");
+                }
+                else if (producto.nivel_criticidad === "Medio") {
+                    fila.classList.add("fila-medio");
+                }
 
+                // 🔔 ALERTA STOCK BAJO
+                if (producto.stock <= 5) {
                     const alerta = document.createElement("div");
                     alerta.className = "alerta";
                     alerta.innerText = `⚠️ Stock bajo: ${producto.nombre} (${producto.stock} unidades)`;
                     alertas.appendChild(alerta);
                 }
 
+                // 🎨 BADGE SEGÚN CRITICIDAD
+                let claseBadge = "";
+                if (producto.nivel_criticidad === "Crítico") claseBadge = "critico";
+                else if (producto.nivel_criticidad === "Alto") claseBadge = "alto";
+                else if (producto.nivel_criticidad === "Medio") claseBadge = "medio";
+                else claseBadge = "bajo";
+
                 fila.innerHTML = `
                     <td>${producto.id}</td>
                     <td>${producto.nombre}</td>
                     <td>${producto.categoria}</td>
-                    <td>${producto.precio}</td>
+                    <td>S/ ${producto.precio}</td>
                     <td>${producto.stock}</td>
+                    <td>${producto.tipo_producto}</td>
+                    <td>${producto.clasificacion_abc}</td>
+                    <td>
+                        <span class="badge ${claseBadge}">
+                            ${producto.nivel_criticidad}
+                        </span>
+                    </td>
                     <td>
                         <button onclick="actualizarStock(${producto.id}, 1)">➕</button>
                         <button onclick="actualizarStock(${producto.id}, -1)">➖</button>
@@ -57,7 +81,6 @@ function cargarProductos() {
         });
 }
 
-// HU01
 function registrarProducto(e) {
     e.preventDefault();
 
@@ -81,7 +104,6 @@ function registrarProducto(e) {
     });
 }
 
-// HU02
 function actualizarStock(id, cantidad) {
     fetch(`http://127.0.0.1:5000/productos/${id}/stock`, {
         method: "PUT",
@@ -100,7 +122,6 @@ function eliminarProducto(id) {
     .then(() => cargarProductos());
 }
 
-// 🔓 LOGOUT
 function logout() {
     localStorage.removeItem("usuario");
     window.location.href = "index.html";

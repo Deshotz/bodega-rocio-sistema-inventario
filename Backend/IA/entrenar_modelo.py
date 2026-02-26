@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-from datetime import timedelta
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 import joblib
 import os
 
@@ -10,11 +9,59 @@ RUTA_DATASET = "dataset_demanda.csv"
 OUTPUT_DIR = "Backend/IA/modelos"
 MODEL_PATH = os.path.join(OUTPUT_DIR, "modelo_demanda.pkl")
 
+# --------------------------------------------------
+# CLASIFICACIÓN LOGÍSTICA
+# --------------------------------------------------
 
-# =========================================================
-# PREPARACIÓN DE DATOS
-# =========================================================
+TIPO_PRODUCTO = {
+    15: "perecible",
+    16: "perecible",
+    17: "perecible",
+    18: "perecible",
+
+    14: "semi",
+    27: "semi",
+    28: "semi",
+    29: "semi",
+    30: "semi",
+}
+
+LEAD_TIME = {
+    15: 2,
+    16: 2,
+    17: 2,
+    18: 1,
+
+    14: 3,
+    27: 3,
+    28: 3,
+    29: 4,
+    30: 3,
+}
+
+# --------------------------------------------------
+# CLASIFICACIÓN ABC (según tu análisis_rotacion.csv)
+# --------------------------------------------------
+
+ABC_MAP = {
+    12: "Alta", 1: "Alta", 39: "Alta", 29: "Alta", 2: "Alta", 5: "Alta",
+    10: "Alta", 24: "Alta", 34: "Alta", 16: "Alta", 15: "Alta", 22: "Alta",
+    8: "Alta", 6: "Alta", 38: "Alta", 18: "Alta", 28: "Alta", 30: "Alta",
+    4: "Alta", 3: "Alta", 9: "Alta", 23: "Alta", 26: "Alta", 17: "Alta",
+
+    7: "Media", 11: "Media", 40: "Media", 31: "Media",
+    33: "Media", 14: "Media", 13: "Media", 36: "Media", 35: "Media",
+
+    20: "Baja", 19: "Baja", 25: "Baja", 27: "Baja",
+    32: "Baja", 21: "Baja", 37: "Baja", 41: "Baja",
+}
+
+# --------------------------------------------------
+# PREPARACIÓN DEL DATASET
+# --------------------------------------------------
+
 def preparar_dataset(df: pd.DataFrame) -> pd.DataFrame:
+
     df["fecha"] = pd.to_datetime(df["fecha"])
 
     daily = (
@@ -26,20 +73,19 @@ def preparar_dataset(df: pd.DataFrame) -> pd.DataFrame:
 
     daily["fecha_dia"] = pd.to_datetime(daily["fecha_dia"])
 
-    # Variables temporales
+    # Features temporales
     daily["dia_semana"] = daily["fecha_dia"].dt.dayofweek
     daily["mes"] = daily["fecha_dia"].dt.month
     daily["dia_mes"] = daily["fecha_dia"].dt.day
     daily["semana_anio"] = daily["fecha_dia"].dt.isocalendar().week.astype(int)
 
-    # Orden temporal
     daily = daily.sort_values(["producto_id", "fecha_dia"]).reset_index(drop=True)
 
     # Lags
     for lag in [1, 7, 14]:
         daily[f"lag_{lag}"] = daily.groupby("producto_id")["demanda"].shift(lag)
 
-    # Promedios móviles
+    # Medias móviles
     daily["ma_7"] = (
         daily.groupby("producto_id")["demanda"]
         .shift(1)
@@ -60,12 +106,23 @@ def preparar_dataset(df: pd.DataFrame) -> pd.DataFrame:
         ["lag_1", "lag_7", "lag_14", "ma_7", "ma_14"]
     ].fillna(0)
 
+    # --------------------------------------------------
+    # VARIABLES LOGÍSTICAS
+    # --------------------------------------------------
+
+    daily["tipo_producto"] = daily["producto_id"].map(TIPO_PRODUCTO).fillna("no_perecible")
+    daily["lead_time"] = daily["producto_id"].map(LEAD_TIME).fillna(7)
+    daily["categoria_rotacion"] = daily["producto_id"].map(ABC_MAP).fillna("Baja")
+
+    daily = pd.get_dummies(daily, columns=["tipo_producto", "categoria_rotacion"], drop_first=True)
+
     return daily
 
 
-# =========================================================
+# --------------------------------------------------
 # SPLIT TEMPORAL
-# =========================================================
+# --------------------------------------------------
+
 def split_temporal(daily: pd.DataFrame):
     daily = daily.sort_values("fecha_dia").reset_index(drop=True)
     cut = int(len(daily) * 0.8)
@@ -76,18 +133,13 @@ def split_temporal(daily: pd.DataFrame):
     return train, test
 
 
-# =========================================================
+# --------------------------------------------------
 # ENTRENAMIENTO
-# =========================================================
+# --------------------------------------------------
+
 def entrenar():
-    if not os.path.exists(RUTA_DATASET):
-        raise FileNotFoundError(f"No existe {RUTA_DATASET}. Genera el dataset primero.")
 
     df = pd.read_csv(RUTA_DATASET)
-    required = {"producto_id", "producto", "cantidad", "fecha"}
-
-    if not required.issubset(df.columns):
-        raise ValueError(f"El CSV debe tener columnas: {required}. Tienes: {df.columns}")
 
     daily = preparar_dataset(df)
     train, test = split_temporal(daily)
@@ -103,30 +155,19 @@ def entrenar():
         "lag_14",
         "ma_7",
         "ma_14",
-    ]
+        "lead_time",
+    ] + [col for col in daily.columns if "tipo_producto_" in col or "categoria_rotacion_" in col]
 
     X_train = train[features]
     y_train = train["demanda"]
     X_test = test[features]
     y_test = test["demanda"]
 
-    # ==============================
-    # BASELINE (MA_7)
-    # ==============================
-    baseline_pred = test["ma_7"].values
-    baseline_mae = mean_absolute_error(y_test, baseline_pred)
-    baseline_rmse = np.sqrt(mean_squared_error(y_test, baseline_pred))
-    baseline_r2 = r2_score(y_test, baseline_pred)
-
-    # ==============================
-    # RANDOM FOREST MEJORADO
-    # ==============================
     model = RandomForestRegressor(
-        n_estimators=600,
+        n_estimators=300,
         random_state=42,
-        max_depth=15,
-        min_samples_split=4,
-        min_samples_leaf=1,
+        min_samples_split=5,
+        min_samples_leaf=2,
         n_jobs=-1
     )
 
@@ -136,23 +177,7 @@ def entrenar():
 
     mae = mean_absolute_error(y_test, pred)
     rmse = np.sqrt(mean_squared_error(y_test, pred))
-    r2 = r2_score(y_test, pred)
 
-    # MAPE
-    mape = np.mean(np.abs((y_test - pred) / (y_test + 1e-5))) * 100
-
-    # ==============================
-    # IMPORTANCIA DE VARIABLES
-    # ==============================
-    importancias = model.feature_importances_
-
-    print("\n🔎 Importancia de variables:")
-    for f, imp in sorted(zip(features, importancias), key=lambda x: x[1], reverse=True):
-        print(f"{f}: {imp:.4f}")
-
-    # ==============================
-    # GUARDAR MODELO + MÉTRICAS
-    # ==============================
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     joblib.dump(
@@ -160,42 +185,20 @@ def entrenar():
             "model": model,
             "features": features,
             "ultima_fecha": daily["fecha_dia"].max(),
-            "productos": daily[
-                ["producto_id", "producto"]
-            ].drop_duplicates().sort_values("producto_id").to_dict("records"),
-            "metricas": {
-                "baseline": {
-                    "mae": baseline_mae,
-                    "rmse": baseline_rmse,
-                    "r2": baseline_r2
-                },
-                "random_forest": {
-                    "mae": mae,
-                    "rmse": rmse,
-                    "r2": r2,
-                    "mape": mape
-                }
-            }
+            "productos": daily[["producto_id", "producto"]]
+                .drop_duplicates()
+                .sort_values("producto_id")
+                .to_dict("records"),
+            "tipo_producto_map": TIPO_PRODUCTO,
+            "lead_time_map": LEAD_TIME,
+            "abc_map": ABC_MAP,
         },
         MODEL_PATH
     )
 
-    # ==============================
-    # RESULTADOS
-    # ==============================
-    print("\n✅ Entrenamiento terminado")
-    print(f"\n📌 Baseline (MA_7)")
-    print(f"MAE: {baseline_mae:.3f}")
-    print(f"RMSE: {baseline_rmse:.3f}")
-    print(f"R²: {baseline_r2:.3f}")
-
-    print(f"\n🤖 RandomForest Mejorado")
-    print(f"MAE: {mae:.3f}")
-    print(f"RMSE: {rmse:.3f}")
-    print(f"R²: {r2:.3f}")
-    print(f"MAPE: {mape:.2f}%")
-
-    print(f"\n💾 Modelo guardado en: {MODEL_PATH}")
+    print("✅ Entrenamiento terminado")
+    print(f"🤖 RandomForest -> MAE: {mae:.3f} | RMSE: {rmse:.3f}")
+    print(f"💾 Modelo guardado en: {MODEL_PATH}")
 
 
 if __name__ == "__main__":
